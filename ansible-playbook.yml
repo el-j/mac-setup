@@ -1,0 +1,156 @@
+---
+- name: Provision New MacBook Environment
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    homebrew_prefix: "{{ '/opt/homebrew' if ansible_machine == 'arm64' else '/usr/local' }}"
+    artcraft_launcher_version: "0.8.1"
+    artcraft_dmg_url: "https://github.com/storytold/craft-launcher/releases/download/v0.8.1/artcraft-launcher-0.8.1-macos-universal.dmg"
+    user_home: "{{ lookup('env', 'HOME') }}"
+
+  pre_tasks:
+    - name: Verify macOS system
+      ansible.builtin.fail:
+        msg: "This playbook is only meant to run on macOS!"
+      when: ansible_os_family != 'Darwin'
+
+    - name: Ensure Homebrew bin is in PATH
+      ansible.builtin.set_fact:
+        ansible_env_path: "{{ homebrew_prefix }}/bin:{{ ansible_env.PATH }}"
+
+  tasks:
+    # -------------------------------------------------------------
+    # 1. HOMEBREW TAPS & CORE PACKAGES
+    # -------------------------------------------------------------
+    - name: Tap third-party Homebrew repositories
+      community.general.homebrew_tap:
+        name:
+          - homebrew/cask
+          - komi-store/komi-store
+        state: present
+
+    - name: Install command-line packages via Homebrew
+      community.general.homebrew:
+        name:
+          - git
+          - curl
+          - wget
+          - jq
+          - mas
+          - zsh
+        state: present
+        update_homebrew: true
+
+    # -------------------------------------------------------------
+    # 2. APPLICATIONS (CASKS)
+    # -------------------------------------------------------------
+    - name: Install GUI applications via Homebrew Cask
+      community.general.homebrew_cask:
+        name:
+          - brave-browser         # Brave Privacy Browser
+          - canva                 # Canva Desktop App
+          - komi-store            # Free Open-Source AppStore Alternative (Komi Store)
+        state: present
+        greedy: true
+
+    # -------------------------------------------------------------
+    # 3. ARTCRAFT SUITE (PdfCraft, VectorCraft, PhotoCraft Launcher)
+    # -------------------------------------------------------------
+    - name: Check if ArtCraft Launcher is installed
+      ansible.builtin.stat:
+        path: "/Applications/ArtCraft Launcher.app"
+      register: artcraft_launcher_stat
+
+    - name: Download ArtCraft Launcher DMG
+      ansible.builtin.get_url:
+        url: "{{ artcraft_dmg_url }}"
+        dest: "/tmp/artcraft-launcher.dmg"
+        mode: '0644'
+      when: not artcraft_launcher_stat.stat.exists
+
+    - name: Mount ArtCraft Launcher DMG
+      ansible.builtin.command:
+        cmd: "hdiutil attach /tmp/artcraft-launcher.dmg -nobrowse -mountpoint /Volumes/ArtCraftLauncher"
+      when: not artcraft_launcher_stat.stat.exists
+      register: mount_dmg
+      failed_when: mount_dmg.rc != 0 and 'already mounted' not in mount_dmg.stderr
+
+    - name: Copy ArtCraft Launcher to /Applications
+      ansible.builtin.copy:
+        src: "/Volumes/ArtCraftLauncher/ArtCraft Launcher.app"
+        dest: "/Applications/"
+        remote_src: true
+        mode: preserve
+      become: true
+      when: not artcraft_launcher_stat.stat.exists
+
+    - name: Unmount ArtCraft Launcher DMG
+      ansible.builtin.command:
+        cmd: "hdiutil detach /Volumes/ArtCraftLauncher -force"
+      when: not artcraft_launcher_stat.stat.exists
+      ignore_errors: true
+
+    - name: Remove quarantine attribute from ArtCraft Launcher
+      ansible.builtin.command:
+        cmd: "xattr -dr com.apple.quarantine /Applications/ArtCraft\\ Launcher.app"
+      ignore_errors: true
+
+    - name: Clean up temporary installer
+      ansible.builtin.file:
+        path: "/tmp/artcraft-launcher.dmg"
+        state: absent
+
+    # -------------------------------------------------------------
+    # 4. MACOS QUALITY OF LIFE PREFERENCES
+    # -------------------------------------------------------------
+    - name: Show all file extensions in Finder
+      community.general.osx_defaults:
+        domain: NSGlobalDomain
+        key: AppleShowAllExtensions
+        type: bool
+        value: true
+        state: present
+
+    - name: Show hidden files in Finder
+      community.general.osx_defaults:
+        domain: com.apple.finder
+        key: AppleShowAllFiles
+        type: bool
+        value: true
+        state: present
+
+    - name: Avoid creating .DS_Store files on network volumes
+      community.general.osx_defaults:
+        domain: com.apple.desktopservices
+        key: DSDontWriteNetworkStores
+        type: bool
+        value: true
+        state: present
+
+    - name: Avoid creating .DS_Store files on USB volumes
+      community.general.osx_defaults:
+        domain: com.apple.desktopservices
+        key: DSDontWriteUSBStores
+        type: bool
+        value: true
+        state: present
+
+    - name: Restart Finder to apply defaults
+      ansible.builtin.command:
+        cmd: "killall Finder"
+      ignore_errors: true
+
+  post_tasks:
+    - name: Display completion summary
+      ansible.builtin.debug:
+        msg:
+          - "=========================================================="
+          - " Provisioning Complete!"
+          - " Installed:"
+          - "  - Brave Browser"
+          - "  - Canva Desktop"
+          - "  - Komi Store (Open-Source App Store)"
+          - "  - ArtCraft Suite Launcher (PdfCraft, VectorCraft, PhotoCraft)"
+          - "=========================================================="
