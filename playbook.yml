@@ -75,32 +75,21 @@
         mode: '0644'
       when: not artcraft_launcher_stat.stat.exists
 
-    - name: Mount ArtCraft Launcher DMG
-      ansible.builtin.command:
-        cmd: "hdiutil attach /tmp/artcraft-launcher.dmg -nobrowse -mountpoint /Volumes/ArtCraftLauncher"
+    - name: Install ArtCraft Launcher via native ditto from DMG
+      ansible.builtin.shell: |
+        set -e
+        # Clean any preexisting mount
+        hdiutil detach /Volumes/ArtCraftLauncher 2>/dev/null || true
+        # Attach quietly
+        hdiutil attach /tmp/artcraft-launcher.dmg -nobrowse -mountpoint /Volumes/ArtCraftLauncher
+        # Copy cleanly with metadata preservation (no sudo/become needed)
+        ditto "/Volumes/ArtCraftLauncher/ArtCraft Launcher.app" "/Applications/ArtCraft Launcher.app"
+        # Detach cleanly
+        sync
+        hdiutil detach /Volumes/ArtCraftLauncher -force 2>/dev/null || true
+        # Remove quarantine flag
+        xattr -cr "/Applications/ArtCraft Launcher.app" 2>/dev/null || true
       when: not artcraft_launcher_stat.stat.exists
-      register: mount_dmg
-      failed_when: mount_dmg.rc != 0 and 'already mounted' not in mount_dmg.stderr
-
-    - name: Copy ArtCraft Launcher to /Applications
-      ansible.builtin.copy:
-        src: "/Volumes/ArtCraftLauncher/ArtCraft Launcher.app"
-        dest: "/Applications/"
-        remote_src: true
-        mode: preserve
-      become: true
-      when: not artcraft_launcher_stat.stat.exists
-
-    - name: Unmount ArtCraft Launcher DMG
-      ansible.builtin.command:
-        cmd: "hdiutil detach /Volumes/ArtCraftLauncher -force"
-      when: not artcraft_launcher_stat.stat.exists
-      ignore_errors: true
-
-    - name: Remove quarantine attribute from ArtCraft Launcher
-      ansible.builtin.command:
-        cmd: "xattr -dr com.apple.quarantine /Applications/ArtCraft\\ Launcher.app"
-      ignore_errors: true
 
     - name: Clean up temporary installer
       ansible.builtin.file:
