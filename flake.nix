@@ -1,93 +1,110 @@
 {
-  description = "MacBook Declarative Nix-Darwin Configuration";
+  description = "Declarative macOS bootstrap configuration";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
+    nix-homebrew.url = "github:zhaofengli-wip/nix-homebrew";
   };
 
-  outputs = inputs@{ self, nix-darwin, nixpkgs }:
+  outputs = inputs@{ self, nixpkgs, nix-darwin, nix-homebrew }:
   let
     configuration = { pkgs, ... }: {
-      # Allow unfree packages
+      # Allow proprietary packages
       nixpkgs.config.allowUnfree = true;
 
-      # Enable Nix experimental features (Flakes)
-      nix.settings.experimental-features = "nix-command flakes";
-
-      # System Packages (CLI)
-      environment.systemPackages = with pkgs; [
-        git
-        curl
-        wget
-        jq
-        mas
-        zsh
+      # System CLI packages
+      environment.systemPackages = [
+        pkgs.git
+        pkgs.curl
+        pkgs.wget
+        pkgs.jq
+        pkgs.mas
+        pkgs.zsh
+        # System monitoring
+        pkgs.htop
+        pkgs.btop
+        pkgs.fastfetch
+        # Productivity CLI utilities
+        pkgs.eza
+        pkgs.bat
+        pkgs.ripgrep
+        pkgs.fd
+        pkgs.fzf
+        pkgs.zoxide
       ];
 
-      # Homebrew Integration
+      # Homebrew management inside Nix-Darwin
       homebrew = {
         enable = true;
-        onActivation = {
-          autoUpdate = true;
-          upgrade = true;
-          cleanup = "zap"; # Clean untracked formulae/casks
-        };
+        onActivation.cleanup = "zap";
+        onActivation.autoUpdate = true;
+        onActivation.upgrade = true;
 
-        # Taps
         taps = [
           "homebrew/cask"
           "komi-store/komi-store"
         ];
 
-        # GUI Casks
+        brews = [
+          "mas"
+        ];
+
         casks = [
-          "brave-browser"  # Brave Browser
-          "canva"          # Canva App
-          "komi-store"     # Free Open Source App Store Alternative
+          "brave-browser"
+          "canva"
+          "komi-store"
+          "iterm2"
+          "raycast"
+          "rectangle"
+          "the-unarchiver"
         ];
       };
 
-      # Post-activation script to download & install ArtCraft Suite Launcher
-      system.activationScripts.postActivation.text = ''
-        echo "Configuring ArtCraft Suite..."
-        if [ ! -d "/Applications/ArtCraft Launcher.app" ]; then
-          echo "Installing ArtCraft Launcher (manages PdfCraft, VectorCraft, PhotoCraft)..."
-          DMG_URL="https://github.com/storytold/craft-launcher/releases/download/v0.8.1/artcraft-launcher-0.8.1-macos-universal.dmg"
-          curl -sSL "$DMG_URL" -o /tmp/artcraft-launcher.dmg
-          hdiutil attach /tmp/artcraft-launcher.dmg -nobrowse -mountpoint /Volumes/ArtCraftLauncher
-          cp -R "/Volumes/ArtCraftLauncher/ArtCraft Launcher.app" /Applications/
-          hdiutil detach /Volumes/ArtCraftLauncher -force || true
-          rm -f /tmp/artcraft-launcher.dmg
-          xattr -dr com.apple.quarantine "/Applications/ArtCraft Launcher.app" || true
-          echo "ArtCraft Launcher successfully installed."
-        fi
-      '';
-
-      # macOS System Preferences
+      # macOS System Defaults
       system.defaults = {
+        NSGlobalDomain.AppleShowAllExtensions = true;
+        NSGlobalDomain.AppleInterfaceStyle = "Dark";
+        finder.AppleShowAllFiles = true;
+        finder.FXEnableExtensionChangeWarning = false;
         dock.autohide = true;
-        finder = {
-          AppleShowAllExtensions = true;
-          AppleShowAllFiles = true;
-          FXEnableExtensionChangeWarning = false;
-        };
-        NSGlobalDomain = {
-          AppleShowAllExtensions = true;
-          InitialKeyRepeat = 15;
-          KeyRepeat = 2;
-        };
+        dock.mru-spaces = false;
       };
 
-      # Compatibility settings
+      # System state tracking
       system.stateVersion = 5;
     };
   in
   {
     darwinConfigurations."macbook" = nix-darwin.lib.darwinSystem {
-      system = "aarch64-darwin"; # Set to "x86_64-darwin" if on an Intel Mac
-      modules = [ configuration ];
+      system = "aarch64-darwin"; # Apple Silicon (M1/M2/M3/M4)
+      modules = [
+        configuration
+        nix-homebrew.darwinModules.nix-homebrew
+        {
+          nix-homebrew = {
+            enable = true;
+            enableRosetta = false;
+            user = builtins.getEnv "USER";
+          };
+        }
+      ];
+    };
+
+    darwinConfigurations."macbook-intel" = nix-darwin.lib.darwinSystem {
+      system = "x86_64-darwin"; # Intel Macs
+      modules = [
+        configuration
+        nix-homebrew.darwinModules.nix-homebrew
+        {
+          nix-homebrew = {
+            enable = true;
+            enableRosetta = false;
+            user = builtins.getEnv "USER";
+          };
+        }
+      ];
     };
   };
 }
