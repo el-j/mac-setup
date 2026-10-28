@@ -31,15 +31,27 @@
           - komi-store/komi-store
         state: present
 
-    - name: Install command-line packages via Homebrew
+    - name: Install command-line packages and useful CLI tools via Homebrew
       community.general.homebrew:
         name:
+          # Base & package tools
           - git
           - curl
           - wget
           - jq
           - mas
           - zsh
+          # System monitoring & diagnostics
+          - htop
+          - btop
+          - fastfetch
+          # Modern CLI productivity enhancements
+          - eza          # Modern 'ls' replacement with colors and icons
+          - bat          # 'cat' clone with syntax highlighting
+          - ripgrep      # Blazing fast recursive search (rg)
+          - fd           # Fast, user-friendly alternative to 'find'
+          - fzf          # Command-line fuzzy finder
+          - zoxide       # Smarter 'cd' command that learns your habits
         state: present
         update_homebrew: true
 
@@ -51,7 +63,11 @@
         name:
           - brave-browser         # Brave Privacy Browser
           - canva                 # Canva Desktop App
-          - komi-store            # Free Open-Source AppStore Alternative (Komi Store)
+          - komi-store            # Free Open-Source AppStore Alternative
+          - iterm2                # Advanced Terminal Emulator
+          - raycast               # Powerful Spotlight and Clipboard Manager
+          - rectangle             # Window management keyboard shortcuts
+          - the-unarchiver        # Universal archive extractor (zip, rar, 7z)
         state: present
         greedy: true
 
@@ -148,9 +164,10 @@
         msg:
           - "=========================================================="
           - " Provisioning Complete!"
-          - " Installed:"
-          - "  - Brave Browser"
-          - "  - Canva Desktop"
-          - "  - Komi Store (Open-Source App Store)"
-          - "  - ArtCraft Suite Launcher (PdfCraft, VectorCraft, PhotoCraft)"
+          - " Installed Applications:"
+          - "  - Brave Browser, Canva, Komi Store"
+          - "  - iTerm2, Raycast, Rectangle, The Unarchiver"
+          - "  - ArtCraft Suite (PdfCraft, VectorCraft, PhotoCraft)"
+          - " Installed CLI Tools:"
+          - "  - htop, btop, fastfetch, eza, bat, ripgrep, fd, fzf, zoxide"
           - "=========================================================="
