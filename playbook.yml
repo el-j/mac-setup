@@ -5,7 +5,7 @@
   gather_facts: true
 
   vars:
-    homebrew_prefix: "{{ '/opt/homebrew' if ansible_machine == 'arm64' else '/usr/local' }}"
+    homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['machine'] == 'arm64' else '/usr/local' }}"
     artcraft_dmg_url: "https://github.com/storytold/craft-launcher/releases/download/v0.8.1/artcraft-launcher-0.8.1-macos-universal.dmg"
     user_home: "{{ lookup('env', 'HOME') }}"
 
@@ -13,7 +13,7 @@
     - name: Verify macOS system
       ansible.builtin.fail:
         msg: "This playbook is only meant to run on macOS!"
-      when: ansible_os_family != 'Darwin'
+      when: ansible_facts['os_family'] != 'Darwin'
 
   tasks:
     # -------------------------------------------------------------
@@ -22,7 +22,6 @@
     - name: Tap third-party Homebrew repositories
       community.general.homebrew_tap:
         name:
-          - homebrew/cask
           - komi-store/komi-store
         state: present
 
