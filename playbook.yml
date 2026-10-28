@@ -17,26 +17,20 @@
 
   tasks:
     # -------------------------------------------------------------
-    # 1. HOMEBREW TAPS, UTILITIES & CLI PACKAGES
+    # 1. COMMAND LINE PACKAGES & PRODUCTIVITY UTILITIES
     # -------------------------------------------------------------
-    - name: Tap third-party Homebrew repositories
-      community.general.homebrew_tap:
-        name:
-          - komi-store/komi-store
-        state: present
-
     - name: Install command-line packages and productivity utilities
       community.general.homebrew:
         name:
-          # Base & package tools
+          # Base tools
           - git
           - curl
           - wget
           - jq
           - mas
           - zsh
-          - dockutil       # CLI tool to manage and clean macOS Dock
-          # System monitoring & diagnostics
+          - dockutil       # CLI tool to clean and arrange macOS Dock
+          # System monitoring
           - htop
           - btop
           - fastfetch
@@ -58,7 +52,7 @@
         name:
           - brave-browser         # Brave Privacy Browser
           - canva                 # Canva Desktop App
-          - komi-store            # Free Open-Source AppStore Alternative
+          - applite               # Free, open-source App Store for Mac apps (Homebrew GUI)
           - iterm2                # Advanced Terminal Emulator
           - raycast               # Spotlight & Clipboard Manager
           - rectangle             # Window snapping shortcuts
@@ -127,8 +121,8 @@
       loop:
         - "/Applications/Brave Browser.app"
         - "/Applications/iTerm.app"
+        - "/Applications/Applite.app"
         - "/Applications/Canva.app"
-        - "/Applications/Komi Store.app"
         - "/Applications/ArtCraft Launcher.app"
         - "/System/Applications/System Settings.app"
       ignore_errors: true
@@ -186,7 +180,7 @@
           - " Provisioning Complete!"
           - " Messy macOS Dock cleared and cleanly re-pinned."
           - " Installed Applications:"
-          - "  - Brave Browser, Canva, Komi Store"
+          - "  - Brave Browser, Canva, Applite (Homebrew App Store)"
           - "  - iTerm2, Raycast, Rectangle, The Unarchiver"
           - "  - ArtCraft Suite (PdfCraft, VectorCraft, PhotoCraft)"
           - " Installed CLI Tools:"
