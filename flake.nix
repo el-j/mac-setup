@@ -11,7 +11,6 @@
   outputs = inputs@{ self, nixpkgs, nix-darwin, nix-homebrew }:
   let
     configuration = { pkgs, ... }: {
-      # Allow proprietary packages
       nixpkgs.config.allowUnfree = true;
 
       # System CLI packages
@@ -22,6 +21,7 @@
         pkgs.jq
         pkgs.mas
         pkgs.zsh
+        pkgs.dockutil
         # System monitoring
         pkgs.htop
         pkgs.btop
@@ -49,6 +49,7 @@
 
         brews = [
           "mas"
+          "dockutil"
         ];
 
         casks = [
@@ -62,23 +63,33 @@
         ];
       };
 
-      # macOS System Defaults
+      # macOS System Defaults & Clean Dock
       system.defaults = {
         NSGlobalDomain.AppleShowAllExtensions = true;
         NSGlobalDomain.AppleInterfaceStyle = "Dark";
         finder.AppleShowAllFiles = true;
         finder.FXEnableExtensionChangeWarning = false;
-        dock.autohide = true;
-        dock.mru-spaces = false;
+        dock = {
+          autohide = true;
+          mru-spaces = false;
+          show-recents = false;
+          # Clean dock: only pin the essentials
+          persistent-apps = [
+            "/Applications/Brave Browser.app"
+            "/Applications/iTerm.app"
+            "/Applications/Canva.app"
+            "/Applications/Komi Store.app"
+            "/System/Applications/System Settings.app"
+          ];
+        };
       };
 
-      # System state tracking
       system.stateVersion = 5;
     };
   in
   {
     darwinConfigurations."macbook" = nix-darwin.lib.darwinSystem {
-      system = "aarch64-darwin"; # Apple Silicon (M1/M2/M3/M4)
+      system = "aarch64-darwin"; # Apple Silicon
       modules = [
         configuration
         nix-homebrew.darwinModules.nix-homebrew
