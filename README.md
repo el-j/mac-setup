@@ -1,4 +1,3 @@
-<!-- ... existing code ... -->
 # 🍏 MacBook Automated Provisioning & Bootstrap Suite
 
 This repository provides reproducible, automated provisioning configurations for setting up a brand-new or freshly wiped Apple Silicon or Intel MacBook.
@@ -24,25 +23,33 @@ On any fresh or wiped Mac, simply open **Terminal** (`Command + Space` -> type `
 
 ## 📦 What Gets Installed & Configured
 
-1. **Package Managers**:
-   - [Homebrew](https://brew.sh) (native macOS package manager).
-   - `mas` (Mac App Store CLI for automated App Store installations).
+### 🖥️ Applications (GUI Casks):
+- 🌐 **Brave Browser** (`brave-browser`) - Privacy-first web browser.
+- 🎨 **Canva Desktop** (`canva`) - Design & creative publishing app.
+- 🏬 **Komi Store** (`komi-store`) - Free, open-source App Store alternative for discovering and installing open-source Mac apps.
+- 💻 **iTerm2** (`iterm2`) - High-performance terminal emulator with splits, hotkey window, and custom themes.
+- ⚡ **Raycast** (`raycast`) - Supercharged Spotlight alternative with integrated clipboard history and window management.
+- 🪟 **Rectangle** (`rectangle`) - Easy window snapping using keyboard shortcuts.
+- 📦 **The Unarchiver** (`the-unarchiver`) - Universal archive unpacker (zip, rar, 7z, tar, etc.).
+- 🖌️ **ArtCraft Creative Suite**:
+  - **ArtCraft Launcher** (central launcher and updater for `PdfCraft`, `VectorCraft`, `PhotoCraft`, `WordCraft`, and `CADCraft`).
 
-2. **Core Applications & Requested Tools**:
-   - 🌐 **Brave Browser** (`brave-browser` cask)
-   - 🎨 **Canva Desktop** (`canva` cask)
-   - 🏬 **Free / Open-Source App Store Alternative**:
-     - **Komi Store** (`komi-store` - cross-platform open-source app store for GitHub/Codeberg releases)
-     - **mas CLI** (command-line interface for the native Mac App Store)
-   - 🖌️ **ArtCraft Creative Suite**:
-     - **ArtCraft Launcher** (official centralized launcher and updater for the Craft apps: `PhotoCraft`, `VectorCraft`, `PdfCraft`, `WordCraft`, and `CADCraft`)
-     - Direct setup and auto-install of `PdfCraft`, `VectorCraft`, and `PhotoCraft`
+### 🛠️ CLI Power Tools:
+- **System Monitoring**: `htop` & `btop` (interactive terminal task monitors), `fastfetch` (instant hardware & OS stats).
+- **File & Search Utilities**:
+  - `eza` (modern, colorized replacement for `ls` with tree views).
+  - `bat` (`cat` with syntax highlighting and git integration).
+  - `ripgrep` (`rg`) (ultra-fast regex searching).
+  - `fd` (intuitive and faster alternative to `find`).
+  - `fzf` (command-line fuzzy finder).
+  - `zoxide` (`z`) (smarter navigation that remembers your most visited folders).
+- **Core CLI Packages**: `git`, `curl`, `wget`, `jq`, `mas` (Mac App Store CLI), and `zsh`.
 
-3. **macOS System Defaults**:
-   - Show hidden files in Finder.
-   - Show file extensions in Finder.
-   - Disable automatic capitalization and spelling correction.
-   - Prevent `.DS_Store` generation on network and USB volumes.
+### ⚙️ macOS Quality-of-Life Defaults:
+- Show all file extensions in Finder.
+- Show hidden files in Finder.
+- Prevent `.DS_Store` generation on network and USB volumes.
+- Auto-hide Dock and disable MRU space rearrangement.
 
 ---
 
@@ -63,12 +70,3 @@ cd ~/.mac-setup
 git pull
 darwin-rebuild switch --flake .#macbook
 ```
-
----
-
-## 🛠 File Hierarchy in this Repository
-
-- `install.sh`: The single-line curl bootstrap installer.
-- `README.md`: This setup documentation.
-- `playbook.yml`: The Ansible playbook automating Homebrew, casks, taps, ArtCraft Suite, and system settings.
-- `flake.nix`: The declarative Nix Flake defining your system, Homebrew casks, and ArtCraft packages.
