@@ -6,8 +6,22 @@
 
   vars:
     homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['machine'] == 'arm64' else '/usr/local' }}"
-    artcraft_dmg_url: "https://github.com/storytold/craft-launcher/releases/download/v0.8.1/artcraft-launcher-0.8.1-macos-universal.dmg"
-    user_home: "{{ lookup('env', 'HOME') }}"
+    user_home: "{{ ansible_env.HOME }}"
+    craft_apps:
+      - repo: "storytold/pdfcraft"
+        name: "PdfCraft"
+      - repo: "storytold/vectorcraft"
+        name: "VectorCraft"
+      - repo: "storytold/photocraft"
+        name: "PhotoCraft"
+      - repo: "storytold/wordcraft"
+        name: "WordCraft"
+      - repo: "storytold/gridcraft"
+        name: "GridCraft"
+      - repo: "storytold/designcraft"
+        name: "DesignCraft"
+      - repo: "storytold/deckcraft"
+        name: "DeckCraft"
 
   pre_tasks:
     - name: Verify macOS system
@@ -17,87 +31,227 @@
 
   tasks:
     # -------------------------------------------------------------
-    # 1. COMMAND LINE PACKAGES & PRODUCTIVITY UTILITIES
+    # 1. CLI PACKAGES & MODERN DEV UTILITIES
     # -------------------------------------------------------------
-    - name: Install command-line packages and productivity utilities
+    - name: Install command-line packages and developer tools
       community.general.homebrew:
         name:
-          # Base tools
           - git
           - curl
           - wget
           - jq
           - mas
           - zsh
-          - dockutil       # CLI tool to clean and arrange macOS Dock
-          # System monitoring
+          - dockutil
           - htop
           - btop
           - fastfetch
-          # Modern CLI productivity replacements
-          - eza          # Modern 'ls' replacement
-          - bat          # 'cat' with syntax highlighting
-          - ripgrep      # Blazing fast grep alternative (rg)
-          - fd           # Fast find alternative
-          - fzf          # Fuzzy finder
-          - zoxide       # Smart directory jumping (z)
+          - starship          # Ultra-fast customizable shell prompt
+          - eza               # Modern 'ls'
+          - bat               # Modern 'cat'
+          - ripgrep           # Lightning fast search
+          - fd                # Intuitive find
+          - fzf               # Fuzzy finder
+          - zoxide            # Smart folder jumper
         state: present
         update_homebrew: true
 
     # -------------------------------------------------------------
-    # 2. APPLICATIONS (CASKS)
+    # 2. GUI APPLICATIONS & NERD FONTS VIA HOMEBREW CASK
     # -------------------------------------------------------------
-    - name: Install GUI applications via Homebrew Cask
+    - name: Install GUI applications and developer fonts via Homebrew Cask
       community.general.homebrew_cask:
         name:
-          - brave-browser         # Brave Privacy Browser
-          - canva                 # Canva Desktop App
-          - applite               # Free, open-source App Store for Mac apps (Homebrew GUI)
-          - iterm2                # Advanced Terminal Emulator
-          - raycast               # Spotlight & Clipboard Manager
-          - rectangle             # Window snapping shortcuts
-          - the-unarchiver        # Universal archive extractor
+          - brave-browser              # Brave Privacy Browser
+          - canva                      # Canva Desktop App
+          - applite                    # Free App Store for Homebrew
+          - iterm2                     # Advanced Terminal
+          - visual-studio-code         # Code editor
+          - raycast                    # Spotlight & clipboard alternative
+          - rectangle                  # Window manager
+          - the-unarchiver             # Archive extractor
+          - font-jetbrains-mono-nerd-font # JetBrains Mono Nerd Font for icons & terminal
         state: present
         greedy: true
 
     # -------------------------------------------------------------
-    # 3. ARTCRAFT SUITE (PdfCraft, VectorCraft, PhotoCraft Launcher)
+    # 3. ITERM2 & ZSH / DRACULA THEME SETUP
     # -------------------------------------------------------------
-    - name: Check if ArtCraft Launcher is installed
-      ansible.builtin.stat:
-        path: "/Applications/ArtCraft Launcher.app"
-      register: artcraft_launcher_stat
+    - name: Ensure Oh My Zsh is installed
+      ansible.builtin.shell: |
+        if [ ! -d "{{ user_home }/.oh-my-zsh" ]; then
+          RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+        fi
+      changed_when: false
 
-    - name: Download ArtCraft Launcher DMG
+    - name: Install zsh-autosuggestions plugin
+      ansible.builtin.git:
+        repo: "https://github.com/zsh-users/zsh-autosuggestions.git"
+        dest: "{{ user_home }/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
+        version: master
+        depth: 1
+
+    - name: Install zsh-syntax-highlighting plugin
+      ansible.builtin.git:
+        repo: "https://github.com/zsh-users/zsh-syntax-highlighting.git"
+        dest: "{{ user_home }/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"
+        version: master
+        depth: 1
+
+    - name: Download Dracula color scheme for iTerm2
       ansible.builtin.get_url:
-        url: "{{ artcraft_dmg_url }}"
-        dest: "/tmp/artcraft-launcher.dmg"
-        mode: '0644'
-      when: not artcraft_launcher_stat.stat.exists
+        url: "https://raw.githubusercontent.com/dracula/iterm/master/Dracula.itermcolors"
+        dest: "/tmp/Dracula.itermcolors"
+        mode: "0644"
 
-    - name: Install ArtCraft Launcher via native ditto from DMG
+    - name: Import Dracula theme into iTerm2
+      ansible.builtin.command:
+        cmd: "open /tmp/Dracula.itermcolors"
+      ignore_errors: true
+
+    - name: Configure Starship prompt config directory
+      ansible.builtin.file:
+        path: "{{ user_home }/.config"
+        state: directory
+        mode: "0755"
+
+    - name: Deploy Starship Dracula preset
+      ansible.builtin.copy:
+        dest: "{{ user_home }/.config/starship.toml"
+        mode: "0644"
+        content: |
+          # Starship Dracula Theme Configuration
+          format = """
+          [┌───────────────────>](bold cyan)
+          [│](bold cyan) $directory$git_branch$git_status$package$nodejs$rust$python$golang
+          [└─>](bold cyan) $character"""
+
+          [character]
+          success_symbol = "[λ](bold purple)"
+          error_symbol = "[✗](bold red)"
+
+          [directory]
+          style = "bold #bd93f9"
+          truncation_length = 4
+
+          [git_branch]
+          style = "bold #ff79c6"
+          symbol = " "
+
+          [git_status]
+          style = "bold #ff5555"
+
+          [nodejs]
+          symbol = " "
+          style = "bold #50fa7b"
+
+          [rust]
+          symbol = " "
+          style = "bold #ffb86c"
+
+          [python]
+          symbol = " "
+          style = "bold #8be9fd"
+
+    - name: Deploy optimized .zshrc profile
+      ansible.builtin.copy:
+        dest: "{{ user_home }/.zshrc"
+        mode: "0644"
+        content: |
+          # Path configuration
+          export PATH="{{ homebrew_prefix }}/bin:{{ homebrew_prefix }}/sbin:$PATH"
+
+          # Oh My Zsh settings
+          export ZSH="$HOME/.oh-my-zsh"
+          ZSH_THEME="" # Managed by starship prompt
+
+          plugins=(
+            git
+            zsh-autosuggestions
+            zsh-syntax-highlighting
+          )
+
+          [ -s "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"
+
+          # Productive Modern Aliases
+          alias ls='eza --icons --group-directories-first'
+          alias ll='eza -la --icons --group-directories-first --git'
+          alias tree='eza --tree --icons'
+          alias cat='bat --theme="Dracula" --style="plain"'
+          alias top='btop'
+          alias ff='fastfetch'
+
+          # Tool Initializations
+          eval "$(zoxide init zsh)"
+          eval "$(starship init zsh)"
+          [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+    # -------------------------------------------------------------
+    # 4. ARTCRAFT LAUNCHER INSTALLATION
+    # -------------------------------------------------------------
+    - name: Install ArtCraft Launcher
       ansible.builtin.shell: |
         set -e
-        # Clean any preexisting mount
-        hdiutil detach /Volumes/ArtCraftLauncher 2>/dev/null || true
-        # Attach quietly
-        hdiutil attach /tmp/artcraft-launcher.dmg -nobrowse -mountpoint /Volumes/ArtCraftLauncher
-        # Copy cleanly with metadata preservation (no sudo/become needed)
-        ditto "/Volumes/ArtCraftLauncher/ArtCraft Launcher.app" "/Applications/ArtCraft Launcher.app"
-        # Detach cleanly
-        sync
-        hdiutil detach /Volumes/ArtCraftLauncher -force 2>/dev/null || true
-        # Remove quarantine flag
-        xattr -cr "/Applications/ArtCraft Launcher.app" 2>/dev/null || true
-      when: not artcraft_launcher_stat.stat.exists
-
-    - name: Clean up temporary installer
-      ansible.builtin.file:
-        path: "/tmp/artcraft-launcher.dmg"
-        state: absent
+        if [ ! -d "/Applications/ArtCraft Launcher.app" ]; then
+          LATEST_URL=$(curl -fsSL https://api.github.com/repos/storytold/craft-launcher/releases/latest | grep "browser_download_url.*macos-universal.dmg" | head -n 1 | cut -d '"' -f 4)
+          if [ -n "$LATEST_URL" ]; then
+            TMP_DMG="/tmp/craft-launcher.dmg"
+            curl -fsSL "$LATEST_URL" -o "$TMP_DMG"
+            MOUNT_DIR=$(mktemp -d /tmp/dmgmount.XXXXXX)
+            hdiutil attach "$TMP_DMG" -mountpoint "$MOUNT_DIR" -nobrowse -quiet
+            cp -R "$MOUNT_DIR"/*.app /Applications/
+            hdiutil detach "$MOUNT_DIR" -quiet || hdiutil detach "$MOUNT_DIR" -force -quiet
+            rm -rf "$TMP_DMG" "$MOUNT_DIR"
+            xattr -rd com.apple.quarantine "/Applications/ArtCraft Launcher.app" 2>/dev/null || true
+          fi
+        fi
+      register: launcher_install
+      changed_when: launcher_install.rc == 0
 
     # -------------------------------------------------------------
-    # 4. CLEAN UP MESSY DOCK & KEEP ONLY WHAT MATTERS
+    # 5. DIRECT INSTALL OF ALL ARTCRAFT SUITE APPS
+    # -------------------------------------------------------------
+    - name: Download and install ArtCraft creative applications
+      ansible.builtin.shell: |
+        set -e
+        APP_NAME="{{ item.name }}"
+        REPO="{{ item.repo }}"
+
+        if [ -d "/Applications/${APP_NAME}.app" ]; then
+          echo "${APP_NAME} is already installed."
+          exit 0
+        fi
+
+        echo "Fetching latest release for ${APP_NAME} from ${REPO}..."
+        RELEASE_JSON=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null || true)
+        
+        DMG_URL=$(echo "$RELEASE_JSON" | grep -i "browser_download_url.*macos.*universal.*\.dmg" | head -n 1 | cut -d '"' -f 4)
+        if [ -z "$DMG_URL" ]; then
+          DMG_URL=$(echo "$RELEASE_JSON" | grep -i "browser_download_url.*\.dmg" | head -n 1 | cut -d '"' -f 4)
+        fi
+
+        if [ -z "$DMG_URL" ]; then
+          echo "Warning: No direct DMG found for ${APP_NAME} yet. It can be installed through ArtCraft Launcher."
+          exit 0
+        fi
+
+        TMP_DMG="/tmp/${APP_NAME}.dmg"
+        curl -fsSL "$DMG_URL" -o "$TMP_DMG"
+        MOUNT_DIR=$(mktemp -d /tmp/dmg_${APP_NAME}.XXXXXX)
+        hdiutil attach "$TMP_DMG" -mountpoint "$MOUNT_DIR" -nobrowse -quiet
+        
+        cp -R "$MOUNT_DIR"/*.app /Applications/
+        
+        hdiutil detach "$MOUNT_DIR" -quiet || hdiutil detach "$MOUNT_DIR" -force -quiet
+        rm -rf "$TMP_DMG" "$MOUNT_DIR"
+        xattr -rd com.apple.quarantine "/Applications/${APP_NAME}.app" 2>/dev/null || true
+        echo "Installed ${APP_NAME} successfully."
+      loop: "{{ craft_apps }}"
+      register: apps_install
+      changed_when: "'Installed' in apps_install.stdout"
+
+    # -------------------------------------------------------------
+    # 6. CLEAN UP MESSY DOCK & KEEP ONLY DESIRED APPS
     # -------------------------------------------------------------
     - name: Remove all default clutter and bloat from macOS Dock
       ansible.builtin.command:
@@ -109,10 +263,18 @@
         cmd: "dockutil --add '{{ item }}' --no-restart"
       loop:
         - "/Applications/Brave Browser.app"
+        - "/Applications/Visual Studio Code.app"
         - "/Applications/iTerm.app"
         - "/Applications/Applite.app"
         - "/Applications/Canva.app"
         - "/Applications/ArtCraft Launcher.app"
+        - "/Applications/PdfCraft.app"
+        - "/Applications/WordCraft.app"
+        - "/Applications/GridCraft.app"
+        - "/Applications/VectorCraft.app"
+        - "/Applications/PhotoCraft.app"
+        - "/Applications/DesignCraft.app"
+        - "/Applications/DeckCraft.app"
         - "/System/Applications/System Settings.app"
       ignore_errors: true
 
@@ -122,7 +284,7 @@
       ignore_errors: true
 
     # -------------------------------------------------------------
-    # 5. MACOS QUALITY OF LIFE PREFERENCES
+    # 7. MACOS QUALITY OF LIFE PREFERENCES
     # -------------------------------------------------------------
     - name: Show all file extensions in Finder
       community.general.osx_defaults:
@@ -167,11 +329,8 @@
         msg:
           - "=========================================================="
           - " Provisioning Complete!"
-          - " Messy macOS Dock cleared and cleanly re-pinned."
-          - " Installed Applications:"
-          - "  - Brave Browser, Canva, Applite (Homebrew App Store)"
-          - "  - iTerm2, Raycast, Rectangle, The Unarchiver"
-          - "  - ArtCraft Suite (PdfCraft, VectorCraft, PhotoCraft)"
-          - " Installed CLI Tools:"
-          - "  - htop, btop, fastfetch, eza, bat, ripgrep, fd, fzf, zoxide"
+          - " Installed Dev Tools: VS Code, iTerm2, JetBrains Mono Nerd Font"
+          - " Zsh Configured: Oh My Zsh, Starship Dracula, Autosuggestions & Highlighting"
+          - " macOS Dock cleared and cleanly re-pinned."
+          - " Applications: Brave, Canva, Applite, ArtCraft Suite"
           - "=========================================================="
