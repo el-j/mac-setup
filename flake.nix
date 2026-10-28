@@ -42,11 +42,6 @@
         onActivation.autoUpdate = true;
         onActivation.upgrade = true;
 
-        taps = [
-          "homebrew/cask"
-          "komi-store/komi-store"
-        ];
-
         brews = [
           "mas"
           "dockutil"
@@ -55,7 +50,7 @@
         casks = [
           "brave-browser"
           "canva"
-          "komi-store"
+          "applite"
           "iterm2"
           "raycast"
           "rectangle"
@@ -77,8 +72,8 @@
           persistent-apps = [
             "/Applications/Brave Browser.app"
             "/Applications/iTerm.app"
+            "/Applications/Applite.app"
             "/Applications/Canva.app"
-            "/Applications/Komi Store.app"
             "/System/Applications/System Settings.app"
           ];
         };
