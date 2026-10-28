@@ -8,7 +8,6 @@
 
 set -euo pipefail
 
-# Text colors & styling
 BOLD="$(tput bold 2>/dev/null || echo '')"
 GREEN="$(tput setaf 2 2>/dev/null || echo '')"
 BLUE="$(tput setaf 4 2>/dev/null || echo '')"
@@ -17,6 +16,7 @@ RED="$(tput setaf 1 2>/dev/null || echo '')"
 RESET="$(tput sgr0 2>/dev/null || echo '')"
 
 REPO_URL="https://github.com/el-j/mac-setup.git"
+RAW_BASE_URL="https://raw.githubusercontent.com/el-j/mac-setup/main"
 INSTALL_DIR="$HOME/.mac-setup"
 
 info()    { printf "%b[INFO]%b %s\n" "${BLUE}${BOLD}" "${RESET}" "$*"; }
@@ -24,7 +24,7 @@ success() { printf "%b[SUCCESS]%b %s\n" "${GREEN}${BOLD}" "${RESET}" "$*"; }
 warn()    { printf "%b[WARN]%b %s\n" "${YELLOW}${BOLD}" "${RESET}" "$*"; }
 error()   { printf "%b[ERROR]%b %s\n" "${RED}${BOLD}" "${RESET}" "$*"; exit 1; }
 
-# Verify Darwin OS
+# Verify macOS
 if [[ "$(uname -s)" != "Darwin" ]]; then
     error "This setup script is strictly intended for macOS."
 fi
@@ -39,16 +39,12 @@ EOF
 
 info "Starting macOS Automated Provisioning Setup..."
 
-# Keep sudo timestamp active during script execution
+# Keep sudo alive
 info "Authenticating with sudo privileges..."
 sudo -v
-while true; do
-    sudo -n true
-    sleep 60
-    kill -0 "$$" || exit
-done 2>/dev/null &
+while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 
-# Determine architecture prefix
+# Determine CPU architecture & brew prefix
 ARCH="$(uname -m)"
 if [[ "$ARCH" == "arm64" ]]; then
     BREW_PREFIX="/opt/homebrew"
@@ -56,52 +52,56 @@ else
     BREW_PREFIX="/usr/local"
 fi
 
-# 1. Check & install Apple Command Line Developer Tools
+# 1. Install Command Line Tools
 if ! xcode-select -p &>/dev/null; then
-    info "Command Line Tools not detected. Initiating installer..."
+    info "Installing Apple Command Line Developer Tools..."
     touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-    PROD=$(softwareupdate -l | grep -B 1 -E "Command Line Tools" | awk -F'*' '/^ *\*/ {print $2}' | sed -e 's/^ *//' | tr -d '\n')
-    if [[ -n "$PROD" ]]; then
-        info "Installing: $PROD"
-        softwareupdate -i "$PROD" --verbose
-    else
-        xcode-select --install
-        echo "Press any key when Command Line Tools finish installing..."
-        read -n 1 -r
-    fi
+    xcode-select --install || true
+    echo "Press any key when the Apple Command Line Tools installation finishes..."
+    read -n 1 -r
     rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-    success "Apple Command Line Developer Tools installed."
+    success "Apple Command Line Developer Tools ready."
 else
-    success "Command Line Developer Tools are already present."
+    success "Command Line Developer Tools are already installed."
 fi
 
-# 2. Check & install Homebrew
+# 2. Install Homebrew
 if ! command -v brew &>/dev/null && [[ ! -x "${BREW_PREFIX}/bin/brew" ]]; then
     info "Installing Homebrew..."
     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 
-# Export Homebrew environment variables into current execution
 eval "$("${BREW_PREFIX}/bin/brew" shellenv)"
 success "Homebrew is active at: $(which brew)"
 
-# 3. Clone or pull configuration repository
-if [[ -d "$INSTALL_DIR/.git" ]]; then
-    info "Existing configuration found in ${INSTALL_DIR}. Pulling latest changes..."
-    git -C "$INSTALL_DIR" pull --ff-only || warn "Could not pull latest changes; continuing with existing directory."
-else
-    info "Cloning repository ${REPO_URL} into ${INSTALL_DIR}..."
-    rm -rf "$INSTALL_DIR"
-    git clone "$REPO_URL" "$INSTALL_DIR"
+# 3. Setup workspace directory
+mkdir -p "$INSTALL_DIR"
+
+if git ls-remote "$REPO_URL" &>/dev/null; then
+    if [[ -d "$INSTALL_DIR/.git" ]]; then
+        info "Pulling latest changes into ${INSTALL_DIR}..."
+        git -C "$INSTALL_DIR" pull --ff-only || true
+    else
+        info "Cloning ${REPO_URL} into ${INSTALL_DIR}..."
+        git clone "$REPO_URL" "$INSTALL_DIR" || true
+    fi
 fi
 
 cd "$INSTALL_DIR"
 
-# 4. Engine selection: Ansible (default) or Nix-Darwin
+# Ensure playbook.yml exists (downloads from raw repo if not present in clone)
+if [[ ! -f "playbook.yml" ]]; then
+    info "playbook.yml not found locally. Fetching latest playbook from repository..."
+    if ! curl -fsSL "${RAW_BASE_URL}/playbook.yml" -o playbook.yml; then
+        warn "Could not fetch remote playbook.yml. Please make sure files are pushed to github.com/el-j/mac-setup."
+    fi
+fi
+
+# 4. Engine selection
 echo ""
 echo "${BOLD}Choose provisioning engine:${RESET}"
-echo "  1) Ansible Playbook (Recommended - fast, simple, no custom daemons)"
-echo "  2) Nix-Darwin (Declarative flake configuration)"
+echo "  1) Ansible Playbook (Recommended - Fast & installs everything)"
+echo "  2) Nix-Darwin (Declarative Flake)"
 echo ""
 
 PROMPT_ENGINE="1"
@@ -111,9 +111,8 @@ fi
 
 case "$PROMPT_ENGINE" in
     2)
-        info "Setting up with Nix-Darwin..."
+        info "Configuring via Nix-Darwin..."
         if ! command -v nix &>/dev/null; then
-            info "Installing Determinate Systems Nix installer..."
             curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
             # shellcheck disable=SC1091
             . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
@@ -124,7 +123,6 @@ case "$PROMPT_ENGINE" in
             FLAKE_TARGET="macbook-intel"
         fi
 
-        info "Applying Nix-Darwin flake configuration (#${FLAKE_TARGET})..."
         nix run nix-darwin -- switch --flake ".#${FLAKE_TARGET}"
         ;;
     *)
@@ -134,10 +132,13 @@ case "$PROMPT_ENGINE" in
             brew install ansible
         fi
 
-        info "Running playbook.yml..."
+        if [[ ! -f "playbook.yml" ]]; then
+            error "playbook.yml is missing in ${INSTALL_DIR}. Ensure you pushed playbook.yml to https://github.com/el-j/mac-setup"
+        fi
+
+        info "Running Ansible Playbook..."
         ansible-playbook -K playbook.yml
         ;;
 esac
 
-success "macOS setup completed successfully!"
-info "Restarting your terminal session or rebooting is recommended to finalize all changes."
+success "Setup successfully completed!"
