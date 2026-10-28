@@ -26,7 +26,7 @@ On any fresh or wiped Mac, simply open **Terminal** (`Command + Space` -> type `
 ### 🖥️ Applications (GUI Casks):
 - 🌐 **Brave Browser** (`brave-browser`) - Privacy-first web browser.
 - 🎨 **Canva Desktop** (`canva`) - Design & creative publishing app.
-- 🏬 **Komi Store** (`komi-store`) - Free, open-source App Store alternative for discovering and installing open-source Mac apps.
+- 🏬 **Applite** (`applite`) - Free, open-source App Store GUI for discovering, installing, and updating Homebrew applications.
 - 💻 **iTerm2** (`iterm2`) - High-performance terminal emulator with splits, hotkey window, and custom themes.
 - ⚡ **Raycast** (`raycast`) - Supercharged Spotlight alternative with integrated clipboard history and window management.
 - 🪟 **Rectangle** (`rectangle`) - Easy window snapping using keyboard shortcuts.
@@ -43,13 +43,11 @@ On any fresh or wiped Mac, simply open **Terminal** (`Command + Space` -> type `
   - `fd` (intuitive and faster alternative to `find`).
   - `fzf` (command-line fuzzy finder).
   - `zoxide` (`z`) (smarter navigation that remembers your most visited folders).
-- **Core CLI Packages**: `git`, `curl`, `wget`, `jq`, `mas` (Mac App Store CLI), and `zsh`.
+- **Core CLI Packages**: `git`, `curl`, `wget`, `jq`, `mas` (Mac App Store CLI), and `dockutil`.
 
-### ⚙️ macOS Quality-of-Life Defaults:
-- Show all file extensions in Finder.
-- Show hidden files in Finder.
-- Prevent `.DS_Store` generation on network and USB volumes.
-- Auto-hide Dock and disable MRU space rearrangement.
+### 🧹 Clean Minimalist Dock:
+- Wipes all default Apple clutter (Keynote, Pages, Maps, Apple TV, News, Podcasts, Freeform, etc.).
+- Pins only your essential apps: Brave Browser, iTerm2, Applite, Canva, and ArtCraft Launcher.
 
 ---
 
