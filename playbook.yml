@@ -6,7 +6,6 @@
 
   vars:
     homebrew_prefix: "{{ '/opt/homebrew' if ansible_machine == 'arm64' else '/usr/local' }}"
-    artcraft_launcher_version: "0.8.1"
     artcraft_dmg_url: "https://github.com/storytold/craft-launcher/releases/download/v0.8.1/artcraft-launcher-0.8.1-macos-universal.dmg"
     user_home: "{{ lookup('env', 'HOME') }}"
 
@@ -16,13 +15,9 @@
         msg: "This playbook is only meant to run on macOS!"
       when: ansible_os_family != 'Darwin'
 
-    - name: Ensure Homebrew bin is in PATH
-      ansible.builtin.set_fact:
-        ansible_env_path: "{{ homebrew_prefix }}/bin:{{ ansible_env.PATH }}"
-
   tasks:
     # -------------------------------------------------------------
-    # 1. HOMEBREW TAPS & CORE PACKAGES
+    # 1. HOMEBREW TAPS, UTILITIES & CLI PACKAGES
     # -------------------------------------------------------------
     - name: Tap third-party Homebrew repositories
       community.general.homebrew_tap:
@@ -31,7 +26,7 @@
           - komi-store/komi-store
         state: present
 
-    - name: Install command-line packages and useful CLI tools via Homebrew
+    - name: Install command-line packages and productivity utilities
       community.general.homebrew:
         name:
           # Base & package tools
@@ -41,17 +36,18 @@
           - jq
           - mas
           - zsh
+          - dockutil       # CLI tool to manage and clean macOS Dock
           # System monitoring & diagnostics
           - htop
           - btop
           - fastfetch
-          # Modern CLI productivity enhancements
-          - eza          # Modern 'ls' replacement with colors and icons
-          - bat          # 'cat' clone with syntax highlighting
-          - ripgrep      # Blazing fast recursive search (rg)
-          - fd           # Fast, user-friendly alternative to 'find'
-          - fzf          # Command-line fuzzy finder
-          - zoxide       # Smarter 'cd' command that learns your habits
+          # Modern CLI productivity replacements
+          - eza          # Modern 'ls' replacement
+          - bat          # 'cat' with syntax highlighting
+          - ripgrep      # Blazing fast grep alternative (rg)
+          - fd           # Fast find alternative
+          - fzf          # Fuzzy finder
+          - zoxide       # Smart directory jumping (z)
         state: present
         update_homebrew: true
 
@@ -65,9 +61,9 @@
           - canva                 # Canva Desktop App
           - komi-store            # Free Open-Source AppStore Alternative
           - iterm2                # Advanced Terminal Emulator
-          - raycast               # Powerful Spotlight and Clipboard Manager
-          - rectangle             # Window management keyboard shortcuts
-          - the-unarchiver        # Universal archive extractor (zip, rar, 7z)
+          - raycast               # Spotlight & Clipboard Manager
+          - rectangle             # Window snapping shortcuts
+          - the-unarchiver        # Universal archive extractor
         state: present
         greedy: true
 
@@ -119,7 +115,32 @@
         state: absent
 
     # -------------------------------------------------------------
-    # 4. MACOS QUALITY OF LIFE PREFERENCES
+    # 4. CLEAN UP MESSY DOCK & KEEP ONLY WHAT MATTERS
+    # -------------------------------------------------------------
+    - name: Remove all default clutter and bloat from macOS Dock
+      ansible.builtin.command:
+        cmd: "dockutil --remove all --no-restart"
+      ignore_errors: true
+
+    - name: Pin desired applications to clean Dock
+      ansible.builtin.command:
+        cmd: "dockutil --add '{{ item }}' --no-restart"
+      loop:
+        - "/Applications/Brave Browser.app"
+        - "/Applications/iTerm.app"
+        - "/Applications/Canva.app"
+        - "/Applications/Komi Store.app"
+        - "/Applications/ArtCraft Launcher.app"
+        - "/System/Applications/System Settings.app"
+      ignore_errors: true
+
+    - name: Restart Dock to apply clean layout
+      ansible.builtin.command:
+        cmd: "killall Dock"
+      ignore_errors: true
+
+    # -------------------------------------------------------------
+    # 5. MACOS QUALITY OF LIFE PREFERENCES
     # -------------------------------------------------------------
     - name: Show all file extensions in Finder
       community.general.osx_defaults:
@@ -164,6 +185,7 @@
         msg:
           - "=========================================================="
           - " Provisioning Complete!"
+          - " Messy macOS Dock cleared and cleanly re-pinned."
           - " Installed Applications:"
           - "  - Brave Browser, Canva, Komi Store"
           - "  - iTerm2, Raycast, Rectangle, The Unarchiver"
